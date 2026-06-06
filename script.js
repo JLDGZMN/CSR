@@ -15,6 +15,7 @@ function initThemeToggle() {
         const isDark = theme === 'dark';
         themeToggle.setAttribute('aria-pressed', String(isDark));
         themeToggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+        themeToggle.setAttribute('title', isDark ? 'Switch to light mode' : 'Switch to dark mode');
 
         if (themeToggleLabel) {
             themeToggleLabel.textContent = isDark ? 'Light mode' : 'Dark mode';
