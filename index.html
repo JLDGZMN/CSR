@@ -13,6 +13,13 @@
     <link rel="stylesheet" href="styles.css">
 
     <script>
+        (function () {
+            const savedTheme = localStorage.getItem('theme');
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+
         tailwind.config = {
             theme: {
                 extend: {
@@ -47,7 +54,7 @@
         }
     </script>
 </head>
-<body class="font-body bg-paper text-ink">
+<body class="font-body">
     <header class="site-header">
         <div class="site-shell header-inner">
             <a href="#home" class="brand-lockup" aria-label="Voxly Careers home">
@@ -66,20 +73,34 @@
                 </div>
             </a>
 
-            <button id="navToggle" class="md:hidden flex flex-col gap-1.5 cursor-pointer" aria-label="Toggle navigation" aria-expanded="false">
-                <span class="w-6 h-0.5 bg-ink transition-all duration-300" id="navBar1"></span>
-                <span class="w-6 h-0.5 bg-ink transition-all duration-300" id="navBar2"></span>
-                <span class="w-6 h-0.5 bg-ink transition-all duration-300" id="navBar3"></span>
-            </button>
+            <div class="header-actions">
+                <button
+                    id="themeToggle"
+                    class="theme-toggle"
+                    type="button"
+                    aria-label="Switch to dark mode"
+                    aria-pressed="false"
+                >
+                    <i class="fas fa-moon theme-icon theme-icon-dark" aria-hidden="true"></i>
+                    <i class="fas fa-sun theme-icon theme-icon-light" aria-hidden="true"></i>
+                    <span id="themeToggleLabel">Dark mode</span>
+                </button>
 
-            <nav id="navigation" class="hidden md:flex gap-8">
-                <a href="#home" class="nav-link active">Home</a>
-                <a href="#about" class="nav-link">About</a>
-                <a href="#services" class="nav-link">Services</a>
-                <a href="#careers" class="nav-link">Careers</a>
-                <a href="#apply" class="nav-link">Apply</a>
-                <a href="#contact" class="nav-link">Contact</a>
-            </nav>
+                <nav id="navigation" class="hidden md:flex gap-8">
+                    <a href="#home" class="nav-link active">Home</a>
+                    <a href="#about" class="nav-link">About</a>
+                    <a href="#services" class="nav-link">Services</a>
+                    <a href="#careers" class="nav-link">Careers</a>
+                    <a href="#apply" class="nav-link">Apply</a>
+                    <a href="#contact" class="nav-link">Contact</a>
+                </nav>
+
+                <button id="navToggle" class="nav-toggle md:hidden" aria-label="Toggle navigation" aria-expanded="false">
+                    <span class="nav-toggle-bar" id="navBar1"></span>
+                    <span class="nav-toggle-bar" id="navBar2"></span>
+                    <span class="nav-toggle-bar" id="navBar3"></span>
+                </button>
+            </div>
         </div>
 
         <nav id="mobileNav" class="md:hidden hidden mobile-nav">

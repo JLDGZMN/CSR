@@ -1,3 +1,45 @@
+function initThemeToggle() {
+    const themeToggle = document.getElementById('themeToggle');
+    const themeToggleLabel = document.getElementById('themeToggleLabel');
+    if (!themeToggle) return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const applyTheme = (theme, persist = true) => {
+        document.documentElement.setAttribute('data-theme', theme);
+
+        if (persist) {
+            localStorage.setItem('theme', theme);
+        }
+
+        const isDark = theme === 'dark';
+        themeToggle.setAttribute('aria-pressed', String(isDark));
+        themeToggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+
+        if (themeToggleLabel) {
+            themeToggleLabel.textContent = isDark ? 'Light mode' : 'Dark mode';
+        }
+    };
+
+    const syncWithSystem = (event) => {
+        if (localStorage.getItem('theme')) return;
+        applyTheme(event.matches ? 'dark' : 'light', false);
+    };
+
+    applyTheme(document.documentElement.getAttribute('data-theme') || 'light', false);
+
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+        applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    });
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+        mediaQuery.addEventListener('change', syncWithSystem);
+    } else if (typeof mediaQuery.addListener === 'function') {
+        mediaQuery.addListener(syncWithSystem);
+    }
+}
+
 function initMobileMenu() {
     const navToggle = document.getElementById('navToggle');
     const mobileNav = document.getElementById('mobileNav');
@@ -161,9 +203,17 @@ function validateApplicationForm(formData) {
 
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
-    toast.className = `fixed top-24 right-6 z-50 rounded-2xl px-5 py-4 shadow-2xl animate-fadeInUp ${
-        type === 'error' ? 'bg-black text-white border border-white/10' : 'bg-white text-black border border-gray-200'
-    }`;
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const background = type === 'error'
+        ? (isDark ? '#1b2330' : '#0b0f19')
+        : (isDark ? '#161d29' : '#ffffff');
+    const textColor = isDark ? '#edf2ff' : '#0b0f19';
+    const borderColor = isDark ? '#334155' : type === 'error' ? 'rgba(255, 255, 255, 0.1)' : '#d9dee7';
+
+    toast.className = 'fixed top-24 right-6 z-50 rounded-2xl px-5 py-4 shadow-2xl animate-fadeInUp';
+    toast.style.background = background;
+    toast.style.color = textColor;
+    toast.style.border = `1px solid ${borderColor}`;
 
     const icon = type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle';
     toast.innerHTML = `<i class="fas ${icon} mr-2 text-accent"></i>${message}`;
@@ -308,6 +358,7 @@ function initContactForm() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    initThemeToggle();
     initMobileMenu();
     initNavigation();
     initFormValidation();
