@@ -247,47 +247,161 @@
                 <p>Choose the path that matches your strengths, then apply in a few minutes.</p>
             </div>
 
-            <div class="card-grid card-grid-four">
-                <article class="career-card">
-                    <h3><i class="fas fa-user-headset mr-2"></i>Customer Service Representative</h3>
-                    <p>Support customers across multiple channels with empathy, accuracy, and speed.</p>
-                    <ul class="detail-list">
-                        <li>Entry to mid-level opportunity</li>
-                        <li>Competitive salary</li>
-                        <li>Benefits package</li>
-                        <li>Growth pathway</li>
-                    </ul>
-                </article>
-                <article class="career-card">
-                    <h3><i class="fas fa-tools mr-2"></i>Technical Support Representative</h3>
-                    <p>Guide customers through technical issues with patient troubleshooting and clear communication.</p>
-                    <ul class="detail-list">
-                        <li>Technical skills valued</li>
-                        <li>Strong benefits</li>
-                        <li>Advancement opportunities</li>
-                        <li>Training support</li>
-                    </ul>
-                </article>
-                <article class="career-card">
-                    <h3><i class="fas fa-chart-line mr-2"></i>Sales Support Agent</h3>
-                    <p>Build engagement, communicate value, and support conversion-focused conversations.</p>
-                    <ul class="detail-list">
-                        <li>Commission structure</li>
-                        <li>Performance bonuses</li>
-                        <li>Recognition program</li>
-                        <li>Career development</li>
-                    </ul>
-                </article>
-                <article class="career-card">
-                    <h3><i class="fas fa-crown mr-2"></i>Team Leader</h3>
-                    <p>Mentor agents, manage performance, and help teams deliver strong customer outcomes.</p>
-                    <ul class="detail-list">
-                        <li>Leadership role</li>
-                        <li>Premium compensation package</li>
-                        <li>Management training</li>
-                        <li>Long-term leadership track</li>
-                    </ul>
-                </article>
+            <div class="career-carousel" aria-label="Open job positions">
+                <button
+                    type="button"
+                    class="career-carousel-button career-carousel-button-prev"
+                    data-career-direction="prev"
+                    aria-label="Show previous job positions"
+                >
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                </button>
+
+                <div class="career-carousel-viewport">
+                    <div class="career-carousel-track">
+                        <article class="career-card" data-job-id="csr">
+                            <h3><i class="fas fa-user-headset mr-2"></i>Customer Service Representative</h3>
+                            <p>Support customers across multiple channels with empathy, accuracy, and speed.</p>
+                            <ul class="detail-list">
+                                <li>Entry to mid-level opportunity</li>
+                                <li>Competitive salary</li>
+                                <li>Benefits package</li>
+                                <li>Growth pathway</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="csr">View Details</button>
+                        </article>
+                        <article class="career-card" data-job-id="tsr">
+                            <h3><i class="fas fa-tools mr-2"></i>Technical Support Representative</h3>
+                            <p>Guide customers through technical issues with patient troubleshooting and clear communication.</p>
+                            <ul class="detail-list">
+                                <li>Technical skills valued</li>
+                                <li>Strong benefits</li>
+                                <li>Advancement opportunities</li>
+                                <li>Training support</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="tsr">View Details</button>
+                        </article>
+                        <article class="career-card" data-job-id="ssa">
+                            <h3><i class="fas fa-chart-line mr-2"></i>Sales Support Agent</h3>
+                            <p>Build engagement, communicate value, and support conversion-focused conversations.</p>
+                            <ul class="detail-list">
+                                <li>Commission structure</li>
+                                <li>Performance bonuses</li>
+                                <li>Recognition program</li>
+                                <li>Career development</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="ssa">View Details</button>
+                        </article>
+                        <article class="career-card" data-job-id="tl">
+                            <h3><i class="fas fa-crown mr-2"></i>Team Leader</h3>
+                            <p>Mentor agents, manage performance, and help teams deliver strong customer outcomes.</p>
+                            <ul class="detail-list">
+                                <li>Leadership role</li>
+                                <li>Premium compensation package</li>
+                                <li>Management training</li>
+                                <li>Long-term leadership track</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="tl">View Details</button>
+                        </article>
+                        <article class="career-card" data-job-id="qa">
+                            <h3><i class="fas fa-clipboard-check mr-2"></i>Quality Assurance Analyst</h3>
+                            <p>Monitor interactions, surface coaching insights, and help raise service quality across teams.</p>
+                            <ul class="detail-list">
+                                <li>Evaluation and audit focused</li>
+                                <li>Quality score ownership</li>
+                                <li>Coaching collaboration</li>
+                                <li>Performance impact role</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="qa">View Details</button>
+                        </article>
+                        <article class="career-card" data-job-id="wfm">
+                            <h3><i class="fas fa-chart-pie mr-2"></i>Workforce Management Specialist</h3>
+                            <p>Balance staffing, schedules, and forecasts to keep operations efficient and customer-ready.</p>
+                            <ul class="detail-list">
+                                <li>Scheduling and forecasting</li>
+                                <li>Operations support role</li>
+                                <li>Data-driven planning</li>
+                                <li>Cross-team coordination</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="wfm">View Details</button>
+                        </article>
+                        <article class="career-card" data-job-id="recruitment">
+                            <h3><i class="fas fa-user-plus mr-2"></i>Recruitment Associate</h3>
+                            <p>Guide applicants through sourcing, screening, and hiring coordination with a smooth candidate experience.</p>
+                            <ul class="detail-list">
+                                <li>Talent pipeline support</li>
+                                <li>Interview coordination</li>
+                                <li>Candidate engagement</li>
+                                <li>Hiring growth exposure</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="recruitment">View Details</button>
+                        </article>
+                        <article class="career-card" data-job-id="ops-manager">
+                            <h3><i class="fas fa-briefcase mr-2"></i>Operations Manager</h3>
+                            <p>Lead delivery performance, manage team direction, and strengthen client-facing operations.</p>
+                            <ul class="detail-list">
+                                <li>Leadership-level opportunity</li>
+                                <li>Strategic planning scope</li>
+                                <li>Client operations oversight</li>
+                                <li>High-impact decision making</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="ops-manager">View Details</button>
+                        </article>
+                        <article class="career-card" data-job-id="customer-success">
+                            <h3><i class="fas fa-handshake-angle mr-2"></i>Customer Success Specialist</h3>
+                            <p>Build trusted client relationships by improving retention, satisfaction, and long-term account health.</p>
+                            <ul class="detail-list">
+                                <li>Relationship-building focus</li>
+                                <li>Retention support role</li>
+                                <li>Growth account potential</li>
+                                <li>Client experience ownership</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="customer-success">View Details</button>
+                        </article>
+                        <article class="career-card" data-job-id="email-support">
+                            <h3><i class="fas fa-envelope-open-text mr-2"></i>Email Support Representative</h3>
+                            <p>Handle customer concerns through clear, accurate, and well-structured written communication.</p>
+                            <ul class="detail-list">
+                                <li>Writing-intensive role</li>
+                                <li>Process and detail oriented</li>
+                                <li>Structured queue handling</li>
+                                <li>Training support included</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="email-support">View Details</button>
+                        </article>
+                        <article class="career-card" data-job-id="chat-support">
+                            <h3><i class="fas fa-comments mr-2"></i>Chat Support Representative</h3>
+                            <p>Resolve issues in real time through fast-paced chat conversations with clarity and empathy.</p>
+                            <ul class="detail-list">
+                                <li>Live chat environment</li>
+                                <li>Multi-tasking focused</li>
+                                <li>Customer-first communication</li>
+                                <li>Growth pathway available</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="chat-support">View Details</button>
+                        </article>
+                        <article class="career-card" data-job-id="social-support">
+                            <h3><i class="fas fa-hashtag mr-2"></i>Social Media Support Representative</h3>
+                            <p>Respond to public and private customer concerns across social channels with professionalism and speed.</p>
+                            <ul class="detail-list">
+                                <li>Omnichannel support role</li>
+                                <li>Brand voice awareness</li>
+                                <li>Escalation handling</li>
+                                <li>Digital engagement exposure</li>
+                            </ul>
+                            <button type="button" class="button button-secondary career-details-trigger" data-job-id="social-support">View Details</button>
+                        </article>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    class="career-carousel-button career-carousel-button-next"
+                    data-career-direction="next"
+                    aria-label="Show next job positions"
+                >
+                    <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                </button>
             </div>
 
             <div class="cta-card">
@@ -331,6 +445,14 @@
                                 <option value="Technical Support Representative">Technical Support Representative</option>
                                 <option value="Sales Support Agent">Sales Support Agent</option>
                                 <option value="Team Leader">Team Leader</option>
+                                <option value="Quality Assurance Analyst">Quality Assurance Analyst</option>
+                                <option value="Workforce Management Specialist">Workforce Management Specialist</option>
+                                <option value="Recruitment Associate">Recruitment Associate</option>
+                                <option value="Operations Manager">Operations Manager</option>
+                                <option value="Customer Success Specialist">Customer Success Specialist</option>
+                                <option value="Email Support Representative">Email Support Representative</option>
+                                <option value="Chat Support Representative">Chat Support Representative</option>
+                                <option value="Social Media Support Representative">Social Media Support Representative</option>
                                 </select>
                             </div>
                         </div>
@@ -430,6 +552,65 @@
             </div>
         </div>
     </section>
+
+    <div id="jobDetailsModal" class="job-modal hidden" aria-hidden="true">
+        <div class="job-modal-backdrop" data-job-modal-close></div>
+        <div
+            class="job-modal-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="jobModalTitle"
+            tabindex="-1"
+        >
+            <button type="button" class="job-modal-close" data-job-modal-close aria-label="Close job details">
+                <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
+
+            <div class="job-modal-header">
+                <p class="eyebrow">Position Details</p>
+                <h3 id="jobModalTitle">Job title</h3>
+                <p id="jobModalDescription" class="job-modal-description"></p>
+            </div>
+
+            <div class="job-modal-grid">
+                <section class="job-modal-section">
+                    <h4>Responsibilities</h4>
+                    <ul id="jobModalResponsibilities" class="job-modal-list"></ul>
+                </section>
+
+                <section class="job-modal-section">
+                    <h4>Qualifications / Requirements</h4>
+                    <ul id="jobModalRequirements" class="job-modal-list"></ul>
+                </section>
+            </div>
+
+            <div class="job-modal-meta">
+                <div class="job-modal-meta-card">
+                    <span>Location</span>
+                    <strong id="jobModalLocation"></strong>
+                </div>
+                <div class="job-modal-meta-card">
+                    <span>Work Setup</span>
+                    <strong id="jobModalWorkSetup"></strong>
+                </div>
+                <div class="job-modal-meta-card">
+                    <span>Monthly Salary</span>
+                    <strong id="jobModalMonthlySalary"></strong>
+                </div>
+            </div>
+
+            <section class="job-modal-section">
+                <h4>Benefits</h4>
+                <ul id="jobModalBenefits" class="job-modal-benefits"></ul>
+            </section>
+
+            <div class="job-modal-actions">
+                <button type="button" id="jobModalApplyButton" class="button button-primary button-block">
+                    <i class="fas fa-paper-plane mr-2" aria-hidden="true"></i>Apply for this Position
+                </button>
+            </div>
+        </div>
+    </div>
 
     <footer class="site-footer">
         <div class="site-shell">
