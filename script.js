@@ -915,23 +915,38 @@ function initChatbot() {
 
     const totalJobs = Object.keys(JOB_DETAILS).length;
     const jobEntries = Object.entries(JOB_DETAILS);
-    const remoteJobs = Object.values(JOB_DETAILS).filter((job) => job.workSetup === 'Remote');
-    const hybridJobs = Object.values(JOB_DETAILS).filter((job) => job.workSetup === 'Hybrid');
+    const remoteJobEntries = jobEntries.filter(([, job]) => job.workSetup === 'Remote');
+    const hybridJobEntries = jobEntries.filter(([, job]) => job.workSetup === 'Hybrid');
+    const onsiteJobEntries = jobEntries.filter(([, job]) => job.workSetup === 'Onsite');
+    const remoteJobs = remoteJobEntries.map(([, job]) => job);
+    const hybridJobs = hybridJobEntries.map(([, job]) => job);
+    const onsiteJobs = onsiteJobEntries.map(([, job]) => job);
     let thinkingTimeout = null;
+    const chatState = {
+        lastJobId: '',
+        lastIntent: '',
+        lastMentionedJobIds: [],
+        lastRecommendedJobIds: [],
+    };
     const jobAliases = {
         csr: 'csr',
         'customer service representative': 'csr',
+        'customer service': 'csr',
         tsr: 'tsr',
         'technical support representative': 'tsr',
         'tech support': 'tsr',
+        'technical support': 'tsr',
         ssa: 'ssa',
         'sales support agent': 'ssa',
+        'sales support': 'ssa',
         'team leader': 'tl',
         tl: 'tl',
         qa: 'qa',
         'quality assurance analyst': 'qa',
+        'quality analyst': 'qa',
         wfm: 'wfm',
         'workforce management specialist': 'wfm',
+        'workforce management': 'wfm',
         'recruitment associate': 'recruitment',
         recruitment: 'recruitment',
         'operations manager': 'ops-manager',
@@ -1029,16 +1044,270 @@ function initChatbot() {
         return true;
     };
 
-    const getRoleSummary = (job) => `${job.title} is ${job.workSetup.toLowerCase()} and currently listed at ${job.monthlySalary}.`;
+    const normalizeText = (value) => value
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
-    const findJobId = (prompt) => {
-        const aliasMatch = Object.entries(jobAliases).find(([alias]) => prompt.includes(alias));
-        if (aliasMatch) {
-            return aliasMatch[1];
+    const includesAny = (text, phrases) => phrases.some((phrase) => text.includes(phrase));
+    const includesWholePhrase = (text, phrases) => {
+        const paddedText = ` ${normalizeText(text)} `;
+        return phrases.some((phrase) => paddedText.includes(` ${normalizeText(phrase)} `));
+    };
+
+    const formatRoleList = (jobs) => {
+        if (jobs.length === 0) return '';
+        if (jobs.length === 1) return jobs[0];
+        if (jobs.length === 2) return `${jobs[0]} and ${jobs[1]}`;
+        return `${jobs.slice(0, -1).join(', ')}, and ${jobs[jobs.length - 1]}`;
+    };
+
+    const formatJobFacts = (job) => [
+        `${job.title} is a ${job.workSetup.toLowerCase()} role`,
+        `based in ${job.location}`,
+        `with a listed salary of ${job.monthlySalary}`,
+    ].join(', ');
+
+    const tokenize = (value) => normalizeText(value).split(' ').filter(Boolean);
+
+    const levenshteinDistance = (source, target) => {
+        if (source === target) return 0;
+        if (!source.length) return target.length;
+        if (!target.length) return source.length;
+
+        const rows = source.length + 1;
+        const cols = target.length + 1;
+        const matrix = Array.from({ length: rows }, () => Array(cols).fill(0));
+
+        for (let row = 0; row < rows; row += 1) {
+            matrix[row][0] = row;
         }
 
-        const directMatch = jobEntries.find(([, job]) => prompt.includes(job.title.toLowerCase()));
-        return directMatch ? directMatch[0] : '';
+        for (let col = 0; col < cols; col += 1) {
+            matrix[0][col] = col;
+        }
+
+        for (let row = 1; row < rows; row += 1) {
+            for (let col = 1; col < cols; col += 1) {
+                const cost = source[row - 1] === target[col - 1] ? 0 : 1;
+                matrix[row][col] = Math.min(
+                    matrix[row - 1][col] + 1,
+                    matrix[row][col - 1] + 1,
+                    matrix[row - 1][col - 1] + cost,
+                );
+            }
+        }
+
+        return matrix[source.length][target.length];
+    };
+
+    const wordsAreClose = (source, target) => {
+        if (source === target) return true;
+        if (source.length < 3 || target.length < 3) return false;
+
+        const distance = levenshteinDistance(source, target);
+        return distance <= (Math.max(source.length, target.length) >= 7 ? 2 : 1);
+    };
+
+    const aliasMatchesPrompt = (alias, promptTokens) => {
+        const aliasTokens = tokenize(alias);
+        if (aliasTokens.length === 0) return false;
+
+        let matchedTokenCount = 0;
+
+        aliasTokens.forEach((aliasToken) => {
+            if (promptTokens.some((promptToken) => wordsAreClose(aliasToken, promptToken))) {
+                matchedTokenCount += 1;
+            }
+        });
+
+        if (aliasTokens.length === 1) {
+            return matchedTokenCount === 1;
+        }
+
+        return matchedTokenCount >= Math.max(2, aliasTokens.length - 1);
+    };
+
+    const getContextualJobId = (prompt, mentionedJobs) => {
+        if (mentionedJobs.length === 1) {
+            return mentionedJobs[0];
+        }
+
+        if (includesWholePhrase(prompt, ['first one', 'first role', 'first job'])) {
+            return chatState.lastMentionedJobIds[0] || chatState.lastRecommendedJobIds[0] || '';
+        }
+
+        if (includesWholePhrase(prompt, ['second one', 'second role', 'second job'])) {
+            return chatState.lastMentionedJobIds[1] || chatState.lastRecommendedJobIds[1] || '';
+        }
+
+        if (includesWholePhrase(prompt, ['other one', 'other role', 'other job'])) {
+            const lastSeenJobs = chatState.lastMentionedJobIds.length > 0
+                ? chatState.lastMentionedJobIds
+                : chatState.lastRecommendedJobIds;
+
+            if (lastSeenJobs.length >= 2) {
+                return lastSeenJobs.find((jobId) => jobId !== chatState.lastJobId) || '';
+            }
+        }
+
+        if (
+            chatState.lastJobId &&
+            includesWholePhrase(prompt, ['that role', 'that one', 'this role', 'this one', 'it', 'that job', 'this job'])
+        ) {
+            return chatState.lastJobId;
+        }
+
+        return '';
+    };
+
+    const buildJobComparisonReply = (firstJobId, secondJobId) => {
+        const firstJob = JOB_DETAILS[firstJobId];
+        const secondJob = JOB_DETAILS[secondJobId];
+
+        return {
+            content: `${firstJob.title} is ${firstJob.workSetup.toLowerCase()} with ${firstJob.monthlySalary}, while ${secondJob.title} is ${secondJob.workSetup.toLowerCase()} with ${secondJob.monthlySalary}. The biggest difference is that ${firstJob.title} focuses on ${firstJob.responsibilities[0].replace(/\.$/, '').toLowerCase()}, while ${secondJob.title} focuses on ${secondJob.responsibilities[0].replace(/\.$/, '').toLowerCase()}.`,
+            actions: [
+                {
+                    label: `Apply for ${firstJob.title}`,
+                    onClick: () => startApplicationForJob(firstJobId),
+                },
+                {
+                    label: `Apply for ${secondJob.title}`,
+                    onClick: () => startApplicationForJob(secondJobId),
+                },
+            ],
+        };
+    };
+
+    const detectMentionedJobs = (prompt) => {
+        const matches = new Set();
+        const promptTokens = tokenize(prompt);
+
+        Object.entries(jobAliases).forEach(([alias, jobId]) => {
+            if (prompt.includes(alias)) {
+                matches.add(jobId);
+            }
+        });
+
+        if (matches.size === 0) {
+            Object.entries(jobAliases).forEach(([alias, jobId]) => {
+                if (aliasMatchesPrompt(alias, promptTokens)) {
+                    matches.add(jobId);
+                }
+            });
+        }
+
+        jobEntries.forEach(([jobId, job]) => {
+            if (prompt.includes(normalizeText(job.title))) {
+                matches.add(jobId);
+            }
+        });
+
+        return Array.from(matches);
+    };
+
+    const resolveJobId = (prompt, mentionedJobs) => {
+        return getContextualJobId(prompt, mentionedJobs);
+    };
+
+    const detectIntent = (prompt, mentionedJobs) => {
+        if (includesWholePhrase(prompt, ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening'])) {
+            return 'greeting';
+        }
+
+        if (includesWholePhrase(prompt, ['thank you', 'thanks', 'salamat'])) {
+            return 'thanks';
+        }
+
+        if (
+            includesAny(prompt, ['looking for', 'prefer', 'good at', 'interested in', 'i want', 'i like', 'suited for me']) &&
+            mentionedJobs.length === 0
+        ) {
+            return 'recommend';
+        }
+
+        if (mentionedJobs.length >= 2 && includesAny(prompt, ['compare', 'difference', 'better', 'versus', 'vs'])) {
+            return 'compare';
+        }
+
+        if (includesAny(prompt, ['recommend', 'best role', 'which job', 'what role', 'fit for me', 'suited for me'])) {
+            return 'recommend';
+        }
+
+        if (includesAny(prompt, ['responsibil', 'duty', 'task', 'what will i do', 'job description'])) {
+            return 'responsibilities';
+        }
+
+        if (includesAny(prompt, ['benefit', 'hmo', 'incentive', 'bonus', 'allowance', 'leave'])) {
+            return 'benefits';
+        }
+
+        if (includesAny(prompt, ['salary', 'pay', 'compensation', 'income'])) {
+            return 'salary';
+        }
+
+        if (includesAny(prompt, ['remote', 'work from home', 'wfh', 'hybrid', 'onsite'])) {
+            return 'setup';
+        }
+
+        if (includesAny(prompt, ['requirement', 'qualif', 'experience', 'skill', 'eligible'])) {
+            return 'requirements';
+        }
+
+        if (includesAny(prompt, ['apply', 'application', 'resume', 'cv', 'submit'])) {
+            return 'apply';
+        }
+
+        if (includesAny(prompt, ['contact', 'phone', 'email', 'location', 'address'])) {
+            return 'contact';
+        }
+
+        if (includesAny(prompt, ['open role', 'openings', 'jobs', 'positions', 'vacancies', 'hiring'])) {
+            return 'open_roles';
+        }
+
+        return mentionedJobs.length > 0 ? 'job_overview' : 'fallback';
+    };
+
+    const getRecommendedJobs = (prompt) => {
+        const recommendations = [];
+
+        if (includesAny(prompt, ['remote', 'work from home', 'wfh'])) {
+            recommendations.push('customer-success', 'chat-support');
+        }
+        if (includesAny(prompt, ['write', 'writing', 'english', 'email'])) {
+            recommendations.push('email-support', 'chat-support');
+        }
+        if (includesAny(prompt, ['technical', 'tech', 'troubleshoot', 'computer'])) {
+            recommendations.push('tsr');
+        }
+        if (includesAny(prompt, ['lead', 'leader', 'supervisor', 'manage'])) {
+            recommendations.push('tl', 'ops-manager');
+        }
+        if (includesAny(prompt, ['sales', 'persuade', 'commission'])) {
+            recommendations.push('ssa');
+        }
+        if (includesAny(prompt, ['social media', 'facebook', 'instagram', 'community'])) {
+            recommendations.push('social-support');
+        }
+        if (includesAny(prompt, ['recruit', 'hr', 'interview'])) {
+            recommendations.push('recruitment');
+        }
+        if (includesAny(prompt, ['excel', 'analytics', 'schedule', 'forecast'])) {
+            recommendations.push('wfm', 'qa');
+        }
+
+        return Array.from(new Set(recommendations)).slice(0, 3);
+    };
+
+    const findJobId = (prompt) => {
+        const mentionedJobs = detectMentionedJobs(prompt);
+        return {
+            mentionedJobs,
+            matchedJobId: resolveJobId(prompt, mentionedJobs),
+        };
     };
 
     const openJobDetails = (jobId) => {
@@ -1078,16 +1347,100 @@ function initChatbot() {
     ]);
 
     const buildReply = (prompt) => {
-        const matchedJobId = findJobId(prompt);
-        if (matchedJobId) {
-            const matchedJob = JOB_DETAILS[matchedJobId];
+        const { mentionedJobs, matchedJobId } = findJobId(prompt);
+        const intent = detectIntent(prompt, mentionedJobs);
+        const primaryJobId = matchedJobId || mentionedJobs[0] || '';
+        const primaryJob = primaryJobId ? JOB_DETAILS[primaryJobId] : null;
+        const lastSeenJobs = chatState.lastMentionedJobIds.length > 0
+            ? chatState.lastMentionedJobIds
+            : chatState.lastRecommendedJobIds;
+        const comparisonPartnerId = (
+            includesAny(prompt, ['compare', 'difference', 'better', 'versus', 'vs', 'other one']) &&
+            primaryJobId &&
+            lastSeenJobs.length > 0
+        )
+            ? lastSeenJobs.find((jobId) => jobId !== primaryJobId) || ''
+            : '';
+
+        if (primaryJobId) {
+            chatState.lastJobId = primaryJobId;
+        }
+        if (mentionedJobs.length > 0) {
+            chatState.lastMentionedJobIds = mentionedJobs;
+        }
+        chatState.lastIntent = intent;
+
+        if (intent === 'greeting') {
             return {
-                content: `${getRoleSummary(matchedJob)} Key requirements include ${matchedJob.requirements[0].replace(/\.$/, '')} and ${matchedJob.requirements[1].replace(/\.$/, '')}.`,
-                actions: buildJobActions(matchedJobId),
+                content: "Hi! I can help you explore Voxly roles, compare jobs, check salary ranges, review requirements, and jump straight to the application form. You can ask something like 'Which remote jobs fit strong writing skills?'",
             };
         }
 
-        if (prompt.includes('open role') || prompt.includes('jobs') || prompt.includes('positions')) {
+        if (intent === 'thanks') {
+            return {
+                content: "You're welcome. If you want, I can also suggest the best role for your skills or open the application form for a specific job.",
+            };
+        }
+
+        if (intent === 'compare' && mentionedJobs.length === 1 && comparisonPartnerId) {
+            chatState.lastMentionedJobIds = [comparisonPartnerId, primaryJobId];
+            return buildJobComparisonReply(comparisonPartnerId, primaryJobId);
+        }
+
+        if (intent === 'compare' && mentionedJobs.length >= 2) {
+            chatState.lastMentionedJobIds = [mentionedJobs[0], mentionedJobs[1]];
+            return buildJobComparisonReply(mentionedJobs[0], mentionedJobs[1]);
+        }
+
+        if (intent === 'recommend') {
+            const recommendedJobs = getRecommendedJobs(prompt);
+            if (recommendedJobs.length > 0) {
+                const recommendedTitles = recommendedJobs.map((jobId) => JOB_DETAILS[jobId].title);
+                chatState.lastRecommendedJobIds = recommendedJobs;
+                chatState.lastMentionedJobIds = recommendedJobs;
+                return {
+                    content: `Based on what you asked, the strongest matches look like ${formatRoleList(recommendedTitles)}. If you want, ask me to compare any two of them and I'll break down salary, setup, and requirements.`,
+                    actions: buildJobActions(recommendedJobs[0]),
+                };
+            }
+
+            return {
+                content: 'I can recommend roles if you tell me what you prefer, like remote work, technical tasks, writing-heavy support, leadership, sales, or recruiting.',
+            };
+        }
+
+        if (intent === 'job_overview' && primaryJob) {
+            return {
+                content: `${formatJobFacts(primaryJob)}. Key requirements include ${primaryJob.requirements[0].replace(/\.$/, '')} and ${primaryJob.requirements[1].replace(/\.$/, '')}.`,
+                actions: buildJobActions(primaryJobId),
+            };
+        }
+
+        if (intent === 'open_roles') {
+            if (includesAny(prompt, ['remote', 'work from home', 'wfh'])) {
+                const remoteTitles = remoteJobs.map((job) => job.title);
+                return {
+                    content: `We currently show ${remoteJobs.length} remote roles: ${formatRoleList(remoteTitles)}.`,
+                    actions: remoteJobEntries[0] ? buildJobActions(remoteJobEntries[0][0]) : [],
+                };
+            }
+
+            if (includesAny(prompt, ['hybrid'])) {
+                const hybridTitles = hybridJobs.map((job) => job.title);
+                return {
+                    content: `We currently show ${hybridJobs.length} hybrid roles: ${formatRoleList(hybridTitles)}.`,
+                    actions: hybridJobEntries[0] ? buildJobActions(hybridJobEntries[0][0]) : [],
+                };
+            }
+
+            if (includesAny(prompt, ['onsite'])) {
+                const onsiteTitles = onsiteJobs.map((job) => job.title);
+                return {
+                    content: `We currently show ${onsiteJobs.length} onsite roles: ${formatRoleList(onsiteTitles)}.`,
+                    actions: onsiteJobEntries[0] ? buildJobActions(onsiteJobEntries[0][0]) : [],
+                };
+            }
+
             const featuredRoles = Object.values(JOB_DETAILS).slice(0, 4).map((job) => job.title).join(', ');
             return {
                 content: `We currently list ${totalJobs} openings. Some of the current roles are ${featuredRoles}. You can scroll to the Careers section to browse all openings.`,
@@ -1100,20 +1453,69 @@ function initChatbot() {
             };
         }
 
-        if (prompt.includes('requirement') || prompt.includes('qualif') || prompt.includes('experience')) {
+        if (intent === 'requirements') {
+            if (mentionedJobs.length >= 2) {
+                const summaries = mentionedJobs.slice(0, 2).map((jobId) => {
+                    const job = JOB_DETAILS[jobId];
+                    return `${job.title}: ${job.requirements[0].replace(/\.$/, '')} and ${job.requirements[1].replace(/\.$/, '')}`;
+                });
+
+                return {
+                    content: summaries.join('. '),
+                };
+            }
+
+            if (primaryJob) {
+                return {
+                    content: `${primaryJob.title} usually looks for candidates who are ${primaryJob.requirements[0].replace(/\.$/, '').toLowerCase()}, ${primaryJob.requirements[1].replace(/\.$/, '').toLowerCase()}, and ${primaryJob.requirements[2].replace(/\.$/, '').toLowerCase()}.`,
+                    actions: buildJobActions(primaryJobId),
+                };
+            }
+
             return {
                 content: 'Most roles ask for strong communication skills, basic computer knowledge, and willingness to work shifting schedules. Some specialist and leadership posts also prefer direct support, technical, or BPO experience.',
             };
         }
 
-        if (prompt.includes('remote') || prompt.includes('work from home') || prompt.includes('wfh')) {
-            const roles = remoteJobs.map((job) => job.title).join(' and ');
+        if (intent === 'setup') {
+            if (mentionedJobs.length >= 2) {
+                const setupDetails = mentionedJobs.slice(0, 2).map((jobId) => {
+                    const job = JOB_DETAILS[jobId];
+                    return `${job.title} is ${job.workSetup.toLowerCase()}`;
+                });
+
+                return {
+                    content: `${setupDetails.join(', while ')}.`,
+                };
+            }
+
+            if (primaryJob) {
+                return {
+                    content: `${primaryJob.title} is listed as ${primaryJob.workSetup.toLowerCase()} and the location shown is ${primaryJob.location}.`,
+                    actions: buildJobActions(primaryJobId),
+                };
+            }
+
+            const roles = formatRoleList(remoteJobs.map((job) => job.title));
             return {
                 content: `Yes. We currently show ${remoteJobs.length} remote roles: ${roles}. We also list ${hybridJobs.length} hybrid positions if you want a mixed setup.`,
             };
         }
 
-        if (prompt.includes('apply') || prompt.includes('application') || prompt.includes('resume')) {
+        if (intent === 'apply') {
+            if (primaryJob) {
+                return {
+                    content: `You can apply for ${primaryJob.title} by opening the Apply section, selecting the role, and uploading a PDF or Word resume under 5MB. The page says application reviews usually take 3 to 5 business days.`,
+                    actions: [
+                        {
+                            label: `Apply for ${primaryJob.title}`,
+                            onClick: () => startApplicationForJob(primaryJobId),
+                        },
+                    ],
+                    beforeReply: () => startApplicationForJob(primaryJobId),
+                };
+            }
+
             return {
                 content: 'To apply, go to the Apply section, complete the form, choose your target position, and upload a PDF or Word resume under 5MB. The page says reviews usually happen within 3 to 5 business days.',
                 actions: [
@@ -1126,19 +1528,62 @@ function initChatbot() {
             };
         }
 
-        if (prompt.includes('salary') || prompt.includes('pay') || prompt.includes('compensation')) {
+        if (intent === 'salary') {
+            if (mentionedJobs.length >= 2) {
+                const salaryDetails = mentionedJobs.slice(0, 2).map((jobId) => {
+                    const job = JOB_DETAILS[jobId];
+                    return `${job.title}: ${job.monthlySalary}`;
+                });
+
+                return {
+                    content: salaryDetails.join('. '),
+                };
+            }
+
+            if (primaryJob) {
+                return {
+                    content: `${primaryJob.title} is currently listed at ${primaryJob.monthlySalary}.`,
+                    actions: buildJobActions(primaryJobId),
+                };
+            }
+
             return {
                 content: 'Salary depends on the role. Current listings range from about PHP 18,000 to PHP 65,000 per month, with some positions also mentioning incentives or bonuses.',
             };
         }
 
-        if (prompt.includes('benefit') || prompt.includes('hmo') || prompt.includes('incentive')) {
+        if (intent === 'benefits') {
+            if (mentionedJobs.length >= 2) {
+                const benefitDetails = mentionedJobs.slice(0, 2).map((jobId) => {
+                    const job = JOB_DETAILS[jobId];
+                    return `${job.title}: ${formatRoleList(job.benefits)}`;
+                });
+
+                return {
+                    content: benefitDetails.join('. '),
+                };
+            }
+
+            if (primaryJob) {
+                return {
+                    content: `${primaryJob.title} mentions benefits such as ${formatRoleList(primaryJob.benefits)}.`,
+                    actions: buildJobActions(primaryJobId),
+                };
+            }
+
             return {
                 content: 'Several roles mention HMO coverage, paid training, leave benefits, incentives, and career growth pathways. Exact benefits vary by position, so the job details modal is the best place to compare them.',
             };
         }
 
-        if (prompt.includes('contact') || prompt.includes('phone') || prompt.includes('email') || prompt.includes('location')) {
+        if (intent === 'responsibilities' && primaryJob) {
+            return {
+                content: `${primaryJob.title} mainly involves ${primaryJob.responsibilities[0].replace(/\.$/, '').toLowerCase()}, ${primaryJob.responsibilities[1].replace(/\.$/, '').toLowerCase()}, and ${primaryJob.responsibilities[2].replace(/\.$/, '').toLowerCase()}.`,
+                actions: buildJobActions(primaryJobId),
+            };
+        }
+
+        if (intent === 'contact') {
             return {
                 content: 'You can reach Voxly Careers through the Contact section. The page lists Pateros City, Philippines, phone +63 955 568 6062, and email careers@voxly.ph.',
                 actions: [
@@ -1152,12 +1597,12 @@ function initChatbot() {
         }
 
         return {
-            content: 'I can help with open roles, remote jobs, salary ranges, benefits, requirements, and application steps. Try asking about a specific position or tap one of the quick options.',
+            content: "I can help with open roles, remote jobs, role comparisons, salary ranges, benefits, requirements, and application steps. Try asking about a specific position, or tell me the kind of work setup and skills you want. I can also understand things like 'tecnical suport', 'the other one', or 'compare that with QA'.",
         };
     };
 
     const answerPrompt = (rawPrompt) => {
-        const prompt = rawPrompt.trim().toLowerCase();
+        const prompt = normalizeText(rawPrompt);
         if (!prompt) return;
 
         addMessage(rawPrompt, 'user');
@@ -1229,4 +1674,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initJobDetailsModal();
     initChatbot();
 });
+
 
