@@ -612,6 +612,56 @@
         </div>
     </div>
 
+    <div class="chatbot-shell">
+        <button
+            type="button"
+            id="chatbotToggle"
+            class="chatbot-toggle"
+            aria-expanded="false"
+            aria-controls="chatbotPanel"
+            aria-label="Open hiring assistant"
+            title="Open hiring assistant"
+        >
+            <span class="chatbot-toggle-icon"><i class="fas fa-comments" aria-hidden="true"></i></span>
+            <span class="sr-only">Open hiring assistant</span>
+        </button>
+
+        <section id="chatbotPanel" class="chatbot-panel hidden" aria-label="Voxly hiring assistant">
+            <div class="chatbot-header">
+                <div>
+                    <p class="chatbot-eyebrow">Voxly Careers</p>
+                    <h3>Hiring Assistant</h3>
+                </div>
+                <button type="button" id="chatbotClose" class="chatbot-close" aria-label="Close hiring assistant">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div id="chatbotMessages" class="chatbot-messages" role="log" aria-live="polite"></div>
+
+            <div class="chatbot-actions">
+                <button type="button" class="chatbot-chip" data-chatbot-prompt="What jobs are open right now?">Open roles</button>
+                <button type="button" class="chatbot-chip" data-chatbot-prompt="What are the application requirements?">Requirements</button>
+                <button type="button" class="chatbot-chip" data-chatbot-prompt="Do you offer remote jobs?">Remote jobs</button>
+                <button type="button" class="chatbot-chip" data-chatbot-prompt="How do I apply?">How to apply</button>
+            </div>
+
+            <form id="chatbotForm" class="chatbot-form">
+                <label for="chatbotInput" class="sr-only">Ask the hiring assistant a question</label>
+                <input
+                    type="text"
+                    id="chatbotInput"
+                    class="chatbot-input"
+                    placeholder="Ask about roles, salary, setup, or application steps"
+                    autocomplete="off"
+                >
+                <button type="submit" class="chatbot-send" aria-label="Send message">
+                    <i class="fas fa-paper-plane" aria-hidden="true"></i>
+                </button>
+            </form>
+        </section>
+    </div>
+
     <footer class="site-footer">
         <div class="site-shell">
             <div class="footer-grid">

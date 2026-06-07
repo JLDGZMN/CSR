@@ -902,6 +902,321 @@ function initContactForm() {
     });
 }
 
+function initChatbot() {
+    const toggle = document.getElementById('chatbotToggle');
+    const panel = document.getElementById('chatbotPanel');
+    const close = document.getElementById('chatbotClose');
+    const form = document.getElementById('chatbotForm');
+    const input = document.getElementById('chatbotInput');
+    const messages = document.getElementById('chatbotMessages');
+    const chips = document.querySelectorAll('[data-chatbot-prompt]');
+
+    if (!toggle || !panel || !close || !form || !input || !messages) return;
+
+    const totalJobs = Object.keys(JOB_DETAILS).length;
+    const jobEntries = Object.entries(JOB_DETAILS);
+    const remoteJobs = Object.values(JOB_DETAILS).filter((job) => job.workSetup === 'Remote');
+    const hybridJobs = Object.values(JOB_DETAILS).filter((job) => job.workSetup === 'Hybrid');
+    let thinkingTimeout = null;
+    const jobAliases = {
+        csr: 'csr',
+        'customer service representative': 'csr',
+        tsr: 'tsr',
+        'technical support representative': 'tsr',
+        'tech support': 'tsr',
+        ssa: 'ssa',
+        'sales support agent': 'ssa',
+        'team leader': 'tl',
+        tl: 'tl',
+        qa: 'qa',
+        'quality assurance analyst': 'qa',
+        wfm: 'wfm',
+        'workforce management specialist': 'wfm',
+        'recruitment associate': 'recruitment',
+        recruitment: 'recruitment',
+        'operations manager': 'ops-manager',
+        'ops manager': 'ops-manager',
+        'customer success specialist': 'customer-success',
+        'customer success': 'customer-success',
+        'email support representative': 'email-support',
+        'email support': 'email-support',
+        'chat support representative': 'chat-support',
+        'chat support': 'chat-support',
+        'social media support representative': 'social-support',
+        'social media support': 'social-support',
+        'social support': 'social-support',
+    };
+    const detailButtons = document.querySelectorAll('.career-details-trigger');
+    const positionSelect = document.getElementById('position');
+    const applySection = document.getElementById('apply');
+
+    const openChat = () => {
+        panel.classList.remove('hidden');
+        toggle.setAttribute('aria-expanded', 'true');
+        window.setTimeout(() => input.focus(), 60);
+    };
+
+    const closeChat = () => {
+        panel.classList.add('hidden');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.focus();
+    };
+
+    const scrollMessages = () => {
+        messages.scrollTop = messages.scrollHeight;
+    };
+
+    const addMessage = (content, sender = 'bot', actions = []) => {
+        const message = document.createElement('div');
+        const paragraph = document.createElement('p');
+
+        message.className = `chatbot-message chatbot-message-${sender}`;
+        paragraph.textContent = content;
+        message.appendChild(paragraph);
+
+        if (actions.length > 0) {
+            const actionsWrap = document.createElement('div');
+            actionsWrap.className = 'chatbot-message-actions';
+
+            actions.forEach((action) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'chatbot-message-action';
+                button.textContent = action.label;
+                button.addEventListener('click', action.onClick);
+                actionsWrap.appendChild(button);
+            });
+
+            message.appendChild(actionsWrap);
+        }
+
+        messages.appendChild(message);
+        scrollMessages();
+    };
+
+    const addThinkingMessage = () => {
+        const message = document.createElement('div');
+        const spinner = document.createElement('span');
+        const text = document.createElement('span');
+
+        message.className = 'chatbot-message chatbot-message-bot chatbot-message-thinking';
+        message.setAttribute('aria-label', 'Hiring assistant is typing');
+        spinner.className = 'chatbot-spinner';
+        spinner.setAttribute('aria-hidden', 'true');
+        text.className = 'chatbot-thinking-text';
+        text.textContent = 'Thinking...';
+
+        message.appendChild(spinner);
+        message.appendChild(text);
+        messages.appendChild(message);
+        scrollMessages();
+
+        return message;
+    };
+
+    const setChatAvailability = (isBusy) => {
+        input.disabled = isBusy;
+        chips.forEach((chip) => {
+            chip.disabled = isBusy;
+        });
+    };
+
+    const openSection = (selector) => {
+        const element = document.querySelector(selector);
+        if (!element) return false;
+
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return true;
+    };
+
+    const getRoleSummary = (job) => `${job.title} is ${job.workSetup.toLowerCase()} and currently listed at ${job.monthlySalary}.`;
+
+    const findJobId = (prompt) => {
+        const aliasMatch = Object.entries(jobAliases).find(([alias]) => prompt.includes(alias));
+        if (aliasMatch) {
+            return aliasMatch[1];
+        }
+
+        const directMatch = jobEntries.find(([, job]) => prompt.includes(job.title.toLowerCase()));
+        return directMatch ? directMatch[0] : '';
+    };
+
+    const openJobDetails = (jobId) => {
+        const trigger = Array.from(detailButtons).find((button) => button.dataset.jobId === jobId);
+        if (!trigger) return false;
+
+        trigger.click();
+        return true;
+    };
+
+    const startApplicationForJob = (jobId) => {
+        const job = JOB_DETAILS[jobId];
+        if (!job || !positionSelect || !applySection) return false;
+
+        const form = document.getElementById('applicationForm');
+        const successMessage = document.getElementById('successMessage');
+        if (form && successMessage && form.style.display === 'none') {
+            form.style.display = 'block';
+            successMessage.classList.add('hidden');
+        }
+
+        positionSelect.value = job.title;
+        applySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.setTimeout(() => positionSelect.focus(), 350);
+        return true;
+    };
+
+    const buildJobActions = (jobId) => ([
+        {
+            label: 'View details',
+            onClick: () => openJobDetails(jobId),
+        },
+        {
+            label: 'Apply now',
+            onClick: () => startApplicationForJob(jobId),
+        },
+    ]);
+
+    const buildReply = (prompt) => {
+        const matchedJobId = findJobId(prompt);
+        if (matchedJobId) {
+            const matchedJob = JOB_DETAILS[matchedJobId];
+            return {
+                content: `${getRoleSummary(matchedJob)} Key requirements include ${matchedJob.requirements[0].replace(/\.$/, '')} and ${matchedJob.requirements[1].replace(/\.$/, '')}.`,
+                actions: buildJobActions(matchedJobId),
+            };
+        }
+
+        if (prompt.includes('open role') || prompt.includes('jobs') || prompt.includes('positions')) {
+            const featuredRoles = Object.values(JOB_DETAILS).slice(0, 4).map((job) => job.title).join(', ');
+            return {
+                content: `We currently list ${totalJobs} openings. Some of the current roles are ${featuredRoles}. You can scroll to the Careers section to browse all openings.`,
+                actions: [
+                    {
+                        label: 'Browse careers',
+                        onClick: () => openSection('#careers'),
+                    },
+                ],
+            };
+        }
+
+        if (prompt.includes('requirement') || prompt.includes('qualif') || prompt.includes('experience')) {
+            return {
+                content: 'Most roles ask for strong communication skills, basic computer knowledge, and willingness to work shifting schedules. Some specialist and leadership posts also prefer direct support, technical, or BPO experience.',
+            };
+        }
+
+        if (prompt.includes('remote') || prompt.includes('work from home') || prompt.includes('wfh')) {
+            const roles = remoteJobs.map((job) => job.title).join(' and ');
+            return {
+                content: `Yes. We currently show ${remoteJobs.length} remote roles: ${roles}. We also list ${hybridJobs.length} hybrid positions if you want a mixed setup.`,
+            };
+        }
+
+        if (prompt.includes('apply') || prompt.includes('application') || prompt.includes('resume')) {
+            return {
+                content: 'To apply, go to the Apply section, complete the form, choose your target position, and upload a PDF or Word resume under 5MB. The page says reviews usually happen within 3 to 5 business days.',
+                actions: [
+                    {
+                        label: 'Open application',
+                        onClick: () => openSection('#apply'),
+                    },
+                ],
+                beforeReply: () => openSection('#apply'),
+            };
+        }
+
+        if (prompt.includes('salary') || prompt.includes('pay') || prompt.includes('compensation')) {
+            return {
+                content: 'Salary depends on the role. Current listings range from about PHP 18,000 to PHP 65,000 per month, with some positions also mentioning incentives or bonuses.',
+            };
+        }
+
+        if (prompt.includes('benefit') || prompt.includes('hmo') || prompt.includes('incentive')) {
+            return {
+                content: 'Several roles mention HMO coverage, paid training, leave benefits, incentives, and career growth pathways. Exact benefits vary by position, so the job details modal is the best place to compare them.',
+            };
+        }
+
+        if (prompt.includes('contact') || prompt.includes('phone') || prompt.includes('email') || prompt.includes('location')) {
+            return {
+                content: 'You can reach Voxly Careers through the Contact section. The page lists Pateros City, Philippines, phone +63 955 568 6062, and email careers@voxly.ph.',
+                actions: [
+                    {
+                        label: 'Open contact',
+                        onClick: () => openSection('#contact'),
+                    },
+                ],
+                beforeReply: () => openSection('#contact'),
+            };
+        }
+
+        return {
+            content: 'I can help with open roles, remote jobs, salary ranges, benefits, requirements, and application steps. Try asking about a specific position or tap one of the quick options.',
+        };
+    };
+
+    const answerPrompt = (rawPrompt) => {
+        const prompt = rawPrompt.trim().toLowerCase();
+        if (!prompt) return;
+
+        addMessage(rawPrompt, 'user');
+        setChatAvailability(true);
+        const thinkingMessage = addThinkingMessage();
+        const reply = buildReply(prompt);
+
+        if (thinkingTimeout) {
+            window.clearTimeout(thinkingTimeout);
+        }
+
+        thinkingTimeout = window.setTimeout(() => {
+            if (typeof reply.beforeReply === 'function') {
+                reply.beforeReply();
+            }
+
+            thinkingMessage.remove();
+            addMessage(reply.content, 'bot', reply.actions || []);
+            setChatAvailability(false);
+            input.focus();
+            thinkingTimeout = null;
+        }, 850);
+    };
+
+    toggle.addEventListener('click', () => {
+        if (panel.classList.contains('hidden')) {
+            openChat();
+        } else {
+            closeChat();
+        }
+    });
+
+    close.addEventListener('click', closeChat);
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const prompt = input.value.trim();
+        if (!prompt) return;
+
+        answerPrompt(prompt);
+        input.value = '';
+    });
+
+    chips.forEach((chip) => {
+        chip.addEventListener('click', () => {
+            const prompt = chip.dataset.chatbotPrompt || '';
+            answerPrompt(prompt);
+        });
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !panel.classList.contains('hidden')) {
+            closeChat();
+        }
+    });
+
+    addMessage("Hi! I'm the Voxly hiring assistant. Ask me about open roles, remote work, requirements, salary ranges, or how to apply.");
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initThemeToggle();
     initMobileMenu();
@@ -912,4 +1227,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initFileUpload();
     initCareersCarousel();
     initJobDetailsModal();
+    initChatbot();
 });
+
